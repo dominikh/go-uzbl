@@ -102,10 +102,7 @@ func parseBind(s string) []Key {
 				mod |= shift
 			}
 		}
-		if len(key) >= 3 && key[0] == '<' && key[len(key)-1] == '>' {
-			// parse function key
-			key = key[1 : len(key)-1]
-		}
+
 		keys = append(keys, Key{key: key, mod: mod})
 	}
 
@@ -206,7 +203,6 @@ func (im *InputManager) EvKeyPress(ev *Event) error {
 	if len(key) > 1 {
 		key = "<" + key + ">"
 	}
-
 	im.input = append(im.input, Key{key: key, mod: mods})
 	im.setKeycmd()
 
