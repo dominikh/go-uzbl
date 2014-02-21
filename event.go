@@ -118,6 +118,11 @@ func (em *EventManager) Connect(stdout io.Reader) error {
 		if err != nil {
 			return err
 		}
+		line = line[:len(line)-1]
+		log.Println(line)
+		if !strings.HasPrefix(line, "EVENT [") {
+			continue
+		}
 		if len(line) < len("EVENT [] X") {
 			// not a valid event
 			continue
@@ -127,7 +132,7 @@ func (em *EventManager) Connect(stdout io.Reader) error {
 			// not a valid event
 			continue
 		}
-		line = line[idx+2 : len(line)-1]
+		line = line[idx+2:]
 		idx = strings.Index(line, " ")
 		if idx < 0 {
 			// not a valid event
@@ -137,10 +142,6 @@ func (em *EventManager) Connect(stdout io.Reader) error {
 		detail := line[idx+1:]
 		event := &Event{em.uzbl, ev, detail}
 
-		if len(em.handlers[ev]) == 0 {
-			// TODO add a verbose option to log handled events, too
-			log.Println(line)
-		}
 		for _, fn := range em.handlers[ev] {
 			err := fn(event)
 			if err != nil {
