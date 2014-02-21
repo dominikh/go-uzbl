@@ -74,32 +74,32 @@ func parseBind(s string) []Key {
 	var keys []Key
 	for _, k := range strings.Split(s, " ") {
 		// TODO handle invalid input
-		parts := strings.Split(k, "-")
-		key := parts[len(parts)-1]
-		mods := parts[0 : len(parts)-1]
-		if len(parts) == 1 {
-			mods = nil
-		}
-
+		key := k
 		mod := 0
-		for _, m := range mods {
-			switch m {
-			case "C":
-				mod |= ctrl
-			case "1":
-				mod |= mod1
-			case "2":
-				mod |= mod2
-			case "3":
-				mod |= mod3
-			case "4":
-				mod |= mod4
-			case "5":
-				mod |= mod5
-			case "6":
-				mod |= mod6
-			case "S":
-				mod |= shift
+		if len(k) > 1 {
+			parts := strings.Split(k, "-")
+			key = parts[len(parts)-1]
+			mods := parts[0 : len(parts)-1]
+
+			for _, m := range mods {
+				switch m {
+				case "C":
+					mod |= ctrl
+				case "1":
+					mod |= mod1
+				case "2":
+					mod |= mod2
+				case "3":
+					mod |= mod3
+				case "4":
+					mod |= mod4
+				case "5":
+					mod |= mod5
+				case "6":
+					mod |= mod6
+				case "S":
+					mod |= shift
+				}
 			}
 		}
 
