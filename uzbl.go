@@ -144,8 +144,13 @@ func (u *Uzbl) Send(cmd string) {
 	u.stdin.Write([]byte{'\n'})
 }
 
-func CommandFn(cmd string) func(*Event, []Key) error {
-	return func(ev *Event, input []Key) error {
+func CommandFn(cmd string) func(*Event, Keys) error {
+	return func(ev *Event, input Keys) error {
+		cmd := cmd
+		if len(input) > 0 {
+			cmd = fmt.Sprintf(cmd, input.String())
+			fmt.Println(cmd)
+		}
 		ev.Uzbl.Send(cmd)
 		return nil
 	}

@@ -5,6 +5,24 @@ import (
 	"strings"
 )
 
+type Keys []Key
+
+func (keys Keys) Display() string {
+	ss := make([]string, len(keys))
+	for i, k := range keys {
+		ss[i] = k.String()
+	}
+	return strings.Join(ss, " ")
+}
+
+func (keys Keys) String() string {
+	ss := make([]string, len(keys))
+	for i, k := range keys {
+		ss[i] = k.String()
+	}
+	return strings.Join(ss, "")
+}
+
 const (
 	ctrl = 1 << iota
 	shift
@@ -70,8 +88,9 @@ func parseMod(s string) int {
 	return mods
 }
 
-func parseBind(s string) []Key {
-	var keys []Key
+func parseBind(s string) *keyBind {
+	bind := &keyBind{}
+	var keys Keys
 	for _, k := range strings.Split(s, " ") {
 		// TODO handle invalid input
 		key := k
@@ -103,33 +122,47 @@ func parseBind(s string) []Key {
 			}
 		}
 
+		if key == "<space>" {
+			key = " "
+		}
 		keys = append(keys, Key{key: key, mod: mod})
 	}
 
-	return keys
+	if keys[len(keys)-1].key == "<*>" {
+		bind.incremental = true
+	}
+
+	bind.bind = keys
+	return bind
 }
 
 type keyBind struct {
-	bind        []Key
-	confirm     bool
+	bind        Keys
+	fn          func(ev *Event, input Keys) error
 	incremental bool
-	fn          func(ev *Event, input []Key) error // TODO which arguments should we give the callback?
 	// TODO support the ! modifier?
 }
 
-func (b *keyBind) matches(input []Key) bool {
-	if !b.incremental && len(input) != len(b.bind) {
+func (b *keyBind) matches(input Keys) bool {
+	if len(input) < len(b.bind) {
 		return false
 	}
-	l := len(input)
-	if len(b.bind) < l {
-		l = len(b.bind)
+
+	if len(input) > len(b.bind) && !b.incremental {
+		return false
 	}
+
+	l := len(b.bind)
+	if b.incremental {
+		l -= 1
+	}
+
 	for i := 0; i < l; i++ {
 		if b.bind[i].key != input[i].key || b.bind[i].mod != input[i].mod {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -153,13 +186,14 @@ type InputManager struct {
 	// TODO support : mode
 	uzbl   *Uzbl
 	binds  []*keyBind
-	input  []Key
+	input  Keys
 	prompt string
 	mode   int
 }
 
-func (im *InputManager) Bind(s string, fn func(ev *Event, input []Key) error) {
-	bind := &keyBind{bind: parseBind(s), fn: fn}
+func (im *InputManager) Bind(s string, fn func(ev *Event, input Keys) error) {
+	bind := parseBind(s)
+	bind.fn = fn
 	im.binds = append(im.binds, bind)
 }
 
@@ -185,45 +219,52 @@ func (im *InputManager) EvKeyPress(ev *Event) error {
 		}
 		im.input = im.input[0 : len(im.input)-1]
 		im.setKeycmd()
-		return nil
-	}
+	} else {
+		// TODO way to not print spaces between characters, and not to use
+		// <space>, so we can type urls etc
 
-	if key == "Return" && im.mode == commandMode {
-		bind, ok := im.findBind(im.input)
-		if !ok {
-			return nil
+		if key == "space" {
+			key = " "
 		}
-		err := bind.fn(ev, im.input)
-		im.input = nil
-		return err
-	}
-	// TODO way to not print spaces between characters, and not to use
-	// <space>, so we can type urls etc
 
-	if len(key) > 1 {
-		key = "<" + key + ">"
+		if len(key) > 1 {
+			key = "<" + key + ">"
+		}
+		im.input = append(im.input, Key{key: key, mod: mods})
+		im.setKeycmd()
 	}
-	im.input = append(im.input, Key{key: key, mod: mods})
-	im.setKeycmd()
+
+	// FIXME incremental binds + Return
 
 	bind, ok := im.findBind(im.input)
 	if !ok {
 		return nil
 	}
-	if bind.confirm && bind.incremental {
+
+	if key == "<Return>" && bind.incremental {
+		im.input = nil
+		im.setKeycmd()
 		return nil
 	}
 
-	err := bind.fn(ev, im.input)
-	im.input = nil
-	im.setKeycmd()
+	var err error
+	if bind.incremental {
+		err = bind.fn(ev, im.input[len(bind.bind)-1:])
+	} else {
+		err = bind.fn(ev, nil)
+	}
+
+	if !bind.incremental || key == "<Return>" {
+		im.input = nil
+		im.setKeycmd()
+	}
 
 	return err
 }
 
 func (im *InputManager) setKeycmd() {
 	im.uzbl.Send(fmt.Sprintf("set keycmd_prompt = %s", im.prompt))
-	im.uzbl.Send(fmt.Sprintf("set keycmd = %s", keysToString(im.input)))
+	im.uzbl.Send(fmt.Sprintf("set keycmd = %s", im.input.Display()))
 }
 
 func (im *InputManager) setModeIndicator() {
@@ -241,7 +282,7 @@ func (im *InputManager) setModeIndicator() {
 
 func (im *InputManager) EvBind(ev *Event) error {
 	args := ev.ParseDetail(3)
-	im.Bind(args[0], CommandFn(args[1])) // TODO repeat,confirm
+	im.Bind(args[0], CommandFn(args[1])) // TODO repeat
 	return nil
 }
 
@@ -269,7 +310,7 @@ func (im *InputManager) EvInstanceStart(ev *Event) error {
 	return nil
 }
 
-func (im *InputManager) findBind(input []Key) (*keyBind, bool) {
+func (im *InputManager) findBind(input Keys) (*keyBind, bool) {
 	// TODO if we ever end up with enough binds to make this slow,
 	// consider a tree-based implementation.
 	for _, b := range im.binds {
@@ -278,12 +319,4 @@ func (im *InputManager) findBind(input []Key) (*keyBind, bool) {
 		}
 	}
 	return nil, false
-}
-
-func keysToString(keys []Key) string {
-	ss := make([]string, len(keys))
-	for i, k := range keys {
-		ss[i] = k.String()
-	}
-	return strings.Join(ss, " ")
 }
