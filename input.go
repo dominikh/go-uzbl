@@ -264,7 +264,9 @@ func (im *InputManager) EvKeyPress(ev *Event) error {
 
 func (im *InputManager) setKeycmd() {
 	im.uzbl.Send(fmt.Sprintf("set keycmd_prompt = %s", im.prompt))
-	im.uzbl.Send(fmt.Sprintf("set keycmd = %s", im.input.Display()))
+	chain := im.input.Display()
+	chain = strings.Replace(chain, " ", "\\ ", -1)
+	im.uzbl.Send(fmt.Sprintf("set keycmd = %s", chain))
 }
 
 func (im *InputManager) setModeIndicator() {
