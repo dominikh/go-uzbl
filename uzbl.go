@@ -118,7 +118,7 @@ func (u *Uzbl) loadConfig(*Event) error {
 }
 
 func (u *Uzbl) Start() {
-	cmd := exec.Command("uzbl-core", "-c", "-", "-p", "http://youtube.com")
+	cmd := exec.Command("uzbl-core", "-c", "-", "-p", "https://google.com")
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		panic(err)
