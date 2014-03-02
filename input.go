@@ -174,6 +174,7 @@ func NewInputManager(u *Uzbl) *InputManager {
 	u.EM.AddHandler("INSERT_MODE", im.EvInsertMode)
 	u.EM.AddHandler("ESCAPE", im.EvEscape)
 	u.EM.AddHandler("INSTANCE_START", im.EvInstanceStart)
+	u.EM.AddHandler("LOAD_START", im.evLoadStart)
 	return im
 }
 
@@ -188,6 +189,13 @@ type InputManager struct {
 	activeKeymap *Keymap
 	input        Keys
 	mode         int
+}
+
+func (im *InputManager) evLoadStart(*Event) error {
+	im.mode = commandMode
+	im.uzbl.Send("set forward_keys = 0")
+	im.setModeIndicator()
+	return nil
 }
 
 func (im *InputManager) EvKeyPress(ev *Event) error {
