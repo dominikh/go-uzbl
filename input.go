@@ -167,7 +167,8 @@ func (b *keyBind) matches(input Keys) bool {
 }
 
 func NewInputManager(u *Uzbl) *InputManager {
-	im := &InputManager{uzbl: u}
+	im := &InputManager{uzbl: u, globalKeymap: &Keymap{DisplaySpaces: true}}
+	im.activeKeymap = im.globalKeymap
 	u.EM.AddHandler("KEY_PRESS", im.EvKeyPress)
 	u.EM.AddHandler("BIND", im.EvBind)
 	u.EM.AddHandler("INSERT_MODE", im.EvInsertMode)
@@ -182,19 +183,11 @@ const (
 )
 
 type InputManager struct {
-	// TODO support insert mode
-	// TODO support : mode
-	uzbl   *Uzbl
-	binds  []*keyBind
-	input  Keys
-	prompt string
-	mode   int
-}
-
-func (im *InputManager) Bind(s string, fn func(ev *Event, input Keys) error) {
-	bind := parseBind(s)
-	bind.fn = fn
-	im.binds = append(im.binds, bind)
+	uzbl         *Uzbl
+	globalKeymap *Keymap
+	activeKeymap *Keymap
+	input        Keys
+	mode         int
 }
 
 func (im *InputManager) EvKeyPress(ev *Event) error {
@@ -236,14 +229,13 @@ func (im *InputManager) EvKeyPress(ev *Event) error {
 
 	// FIXME incremental binds + Return
 
-	bind, ok := im.findBind(im.input)
+	bind, ok := im.activeKeymap.findBind(im.input)
 	if !ok {
 		return nil
 	}
 
 	if key == "<Return>" && bind.incremental {
-		im.input = nil
-		im.setKeycmd()
+		im.ClearInput()
 		return nil
 	}
 
@@ -255,18 +247,31 @@ func (im *InputManager) EvKeyPress(ev *Event) error {
 	}
 
 	if !bind.incremental || key == "<Return>" {
-		im.input = nil
-		im.setKeycmd()
+		im.ClearInput()
 	}
 
 	return err
 }
 
 func (im *InputManager) setKeycmd() {
-	im.uzbl.Send(fmt.Sprintf("set keycmd_prompt = %s", im.prompt))
-	chain := im.input.Display()
+	im.setPrompt()
+	var chain string
+	if im.activeKeymap.DisplaySpaces {
+		chain = im.input.Display()
+	} else {
+		chain = im.input.String()
+	}
 	chain = strings.Replace(chain, " ", "\\ ", -1)
 	im.uzbl.Send(fmt.Sprintf("set keycmd = %s", chain))
+}
+
+func (im *InputManager) setPrompt() {
+	if im.activeKeymap.Prompt == "" {
+		im.uzbl.Send(fmt.Sprintf("set keycmd_prompt = "))
+		return
+	}
+	prompt := im.activeKeymap.Prompt + `\ \ `
+	im.uzbl.Send(fmt.Sprintf("set keycmd_prompt = %s", prompt))
 }
 
 func (im *InputManager) setModeIndicator() {
@@ -284,7 +289,7 @@ func (im *InputManager) setModeIndicator() {
 
 func (im *InputManager) EvBind(ev *Event) error {
 	args := ev.ParseDetail(3)
-	im.Bind(args[0], CommandFn(args[1])) // TODO repeat
+	im.globalKeymap.Bind(args[0], CommandFn(args[1])) // TODO repeat
 	return nil
 }
 
@@ -296,11 +301,11 @@ func (im *InputManager) EvInsertMode(ev *Event) error {
 }
 
 func (im *InputManager) EvEscape(ev *Event) error {
-	if im.mode == commandMode {
-		im.input = nil
-		im.setKeycmd()
-		return nil
+	if im.activeKeymap.OnEscape != nil {
+		im.activeKeymap.OnEscape()
 	}
+	// TODO move this into an OnEscape, too?
+	im.SetGlobalKeymap()
 	im.mode = commandMode
 	im.uzbl.Send("set forward_keys = 0")
 	im.setModeIndicator()
@@ -312,10 +317,38 @@ func (im *InputManager) EvInstanceStart(ev *Event) error {
 	return nil
 }
 
-func (im *InputManager) findBind(input Keys) (*keyBind, bool) {
+func (im *InputManager) SetKeymap(k *Keymap) {
+	im.activeKeymap = k
+	im.ClearInput()
+	im.setPrompt()
+}
+
+func (im *InputManager) SetGlobalKeymap() {
+	im.SetKeymap(im.globalKeymap)
+}
+
+func (im *InputManager) ClearInput() {
+	im.input = nil
+	im.setKeycmd()
+}
+
+type Keymap struct {
+	binds         []*keyBind
+	Prompt        string
+	DisplaySpaces bool
+	OnEscape      func()
+}
+
+func (k *Keymap) Bind(s string, fn func(ev *Event, input Keys) error) {
+	bind := parseBind(s)
+	bind.fn = fn
+	k.binds = append(k.binds, bind)
+}
+
+func (k *Keymap) findBind(input Keys) (*keyBind, bool) {
 	// TODO if we ever end up with enough binds to make this slow,
 	// consider a tree-based implementation.
-	for _, b := range im.binds {
+	for _, b := range k.binds {
 		if b.matches(input) {
 			return b, true
 		}
