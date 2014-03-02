@@ -175,6 +175,8 @@ func NewInputManager(u *Uzbl) *InputManager {
 	u.EM.AddHandler("ESCAPE", im.evEscape)
 	u.EM.AddHandler("INSTANCE_START", im.evInstanceStart)
 	u.EM.AddHandler("LOAD_START", im.evLoadStart)
+	u.EM.AddHandler("FOCUS_ELEMENT", im.evFocusElement)
+	u.EM.AddHandler("ROOT_ACTIVE", im.evRootActive)
 	return im
 }
 
@@ -189,6 +191,32 @@ type InputManager struct {
 	activeKeymap *Keymap
 	input        Keys
 	mode         int
+}
+
+func (im *InputManager) evRootActive(*Event) error {
+	// FIXME there seems to be a bug in uzbl that triggers a
+	// FOCUS_ELEMENT right after the first ROOT_ACTIVE.
+	im.mode = commandMode
+	im.uzbl.Send("set forward_keys = 0")
+	im.setModeIndicator()
+	return nil
+}
+
+func (im *InputManager) evFocusElement(ev *Event) error {
+	fmt.Println(ev.Detail)
+	el, err := parseString(ev.Detail)
+	if err != nil {
+		return err
+	}
+
+	// FIXME this will focus the google search when the page loads,
+	// which is annoying behaviour.
+
+	switch el {
+	case "INPUT", "TEXTAREA", "SELECT":
+		return im.evInsertMode(ev)
+	}
+	return nil
 }
 
 func (im *InputManager) evLoadStart(*Event) error {
