@@ -197,7 +197,7 @@ func (im *InputManager) evRootActive(*Event) error {
 	// FIXME there seems to be a bug in uzbl that triggers a
 	// FOCUS_ELEMENT right after the first ROOT_ACTIVE.
 	im.mode = commandMode
-	im.uzbl.Send("set forward_keys = 0")
+	im.uzbl.Send("set forward_keys 0")
 	im.setModeIndicator()
 	return nil
 }
@@ -221,7 +221,7 @@ func (im *InputManager) evFocusElement(ev *Event) error {
 
 func (im *InputManager) evLoadStart(*Event) error {
 	im.mode = commandMode
-	im.uzbl.Send("set forward_keys = 0")
+	im.uzbl.Send("set forward_keys 0")
 	im.setModeIndicator()
 	return nil
 }
@@ -298,16 +298,16 @@ func (im *InputManager) setKeycmd() {
 		chain = im.input.String()
 	}
 	chain = strings.Replace(chain, " ", "\\ ", -1)
-	im.uzbl.Send(fmt.Sprintf("set keycmd = %s", chain))
+	im.uzbl.Send(fmt.Sprintf("set keycmd %s", chain))
 }
 
 func (im *InputManager) setPrompt() {
 	if im.activeKeymap.Prompt == "" {
-		im.uzbl.Send(fmt.Sprintf("set keycmd_prompt = "))
+		im.uzbl.Send(fmt.Sprintf("set keycmd_prompt "))
 		return
 	}
-	prompt := im.activeKeymap.Prompt + `\ \ `
-	im.uzbl.Send(fmt.Sprintf("set keycmd_prompt = %s", prompt))
+	prompt := im.activeKeymap.Prompt + `\ `
+	im.uzbl.Send(fmt.Sprintf("set keycmd_prompt %s", prompt))
 }
 
 func (im *InputManager) setModeIndicator() {
@@ -320,7 +320,7 @@ func (im *InputManager) setModeIndicator() {
 	default:
 		name = "Error!"
 	}
-	im.uzbl.Send(fmt.Sprintf("set mode_indicator = %s", name))
+	im.uzbl.Send(fmt.Sprintf("set mode_indicator %s", name))
 }
 
 func (im *InputManager) evBind(ev *Event) error {
@@ -331,7 +331,7 @@ func (im *InputManager) evBind(ev *Event) error {
 
 func (im *InputManager) evInsertMode(ev *Event) error {
 	im.mode = insertMode
-	im.uzbl.Send("set forward_keys = 1")
+	im.uzbl.Send("set forward_keys 1")
 	im.setModeIndicator()
 	return nil
 }
@@ -343,7 +343,7 @@ func (im *InputManager) evEscape(ev *Event) error {
 	// TODO move this into an OnEscape, too?
 	im.SetGlobalKeymap()
 	im.mode = commandMode
-	im.uzbl.Send("set forward_keys = 0")
+	im.uzbl.Send("set forward_keys 0")
 	im.setModeIndicator()
 	return nil
 }

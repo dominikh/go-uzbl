@@ -36,7 +36,7 @@ func (s *ScrollIndicator) evScrollVert(ev *uzbl.Event) error {
 		out = fmt.Sprintf("%.2f%%", float64(int((10000*p)+0.5))/100)
 	}
 
-	ev.Uzbl.Send(fmt.Sprintf("set scroll_message = %s", out))
+	ev.Uzbl.Send(fmt.Sprintf("set scroll_message %s", out))
 	return nil
 }
 

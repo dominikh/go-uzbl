@@ -40,7 +40,6 @@ func NewUzbl() *Uzbl {
 	u.EM = NewEventManager(u)
 	u.IM = NewInputManager(u)
 
-	u.EM.AddHandler("INSTANCE_START", u.loadConfig)
 	u.EM.AddHandler("VARIABLE_SET", u.Variables.evVariableSet)
 	u.EM.AddHandler("GEOMETRY_CHANGED", u.evGeometryChanged)
 	return u
@@ -105,7 +104,7 @@ func (u *Uzbl) evGeometryChanged(ev *Event) error {
 	return nil
 }
 
-func (u *Uzbl) loadConfig(*Event) error {
+func (u *Uzbl) loadConfig() error {
 	fmt.Println("Loading config")
 	// TODO XDG
 	f, err := os.Open("/home/dominikh/.config/uzbl/config")
@@ -118,7 +117,7 @@ func (u *Uzbl) loadConfig(*Event) error {
 }
 
 func (u *Uzbl) Start() {
-	cmd := exec.Command("uzbl-core", "-c", "-", "-p", "https://google.com")
+	cmd := exec.Command("uzbl-core", "-c", "-", "-p", "--uri", "https://google.com")
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		panic(err)
@@ -137,6 +136,9 @@ func (u *Uzbl) Start() {
 	if err != nil {
 		panic(err)
 	}
+
+	u.loadConfig()
+
 	cmd.Wait()
 }
 

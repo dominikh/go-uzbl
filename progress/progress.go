@@ -23,18 +23,18 @@ type ProgressBar struct {
 }
 
 func (p *ProgressBar) evLoadFinish(*uzbl.Event) error {
-	p.uzbl.Send(`set status_message = <span foreground="gold">done</span>`)
+	p.uzbl.Send(`set status_message <span foreground="gold">done</span>`)
 	return nil
 }
 
 func (p *ProgressBar) evLoadStart(*uzbl.Event) error {
-	p.uzbl.Send(`set status_message = <span foreground="khaki">wait</span>`)
+	p.uzbl.Send(`set status_message <span foreground="khaki">wait</span>`)
 	return nil
 }
 
 func (p *ProgressBar) evLoadCommit(ev *uzbl.Event) error {
 	p.updates = 0
-	p.uzbl.Send(`set status_message = <span foreground="green">recv</span>`)
+	p.uzbl.Send(`set status_message <span foreground="green">recv</span>`)
 	return p.evLoadProgress(ev)
 }
 
@@ -123,6 +123,6 @@ func (p *ProgressBar) evLoadProgress(ev *uzbl.Event) error {
 		output += string(c)
 	}
 
-	ev.Uzbl.Send(fmt.Sprintf("set progress.output = %s", output))
+	ev.Uzbl.Send(fmt.Sprintf("set progress.output %s", output))
 	return nil
 }

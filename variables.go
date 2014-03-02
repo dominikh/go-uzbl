@@ -55,13 +55,14 @@ func (vs *VariableStore) GetString(name string, def string) string {
 func (v *VariableStore) evVariableSet(ev *Event) error {
 	parts := strings.SplitN(ev.Detail, " ", 3)
 	name, typ, value := parts[0], parts[1], parts[2]
+	if value == `''` || len(value) < 2 {
+		value = ""
+	} else {
+		value = value[1 : len(value)-1]
+	}
 	switch typ {
 	case "str":
-		s, err := parseString(value)
-		if err != nil {
-			return err
-		}
-		v.SetString(name, s)
+		v.SetString(name, value)
 	case "int":
 		i, err := strconv.Atoi(value)
 		if err != nil {
