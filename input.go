@@ -144,17 +144,17 @@ type keyBind struct {
 }
 
 func (b *keyBind) matches(input Keys) bool {
-	if len(input) < len(b.bind) {
+	l := len(b.bind)
+	if b.incremental {
+		l -= 1
+	}
+
+	if len(input) < l {
 		return false
 	}
 
 	if len(input) > len(b.bind) && !b.incremental {
 		return false
-	}
-
-	l := len(b.bind)
-	if b.incremental {
-		l -= 1
 	}
 
 	for i := 0; i < l; i++ {
