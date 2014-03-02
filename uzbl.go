@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -147,9 +148,8 @@ func (u *Uzbl) Send(cmd string) {
 func CommandFn(cmd string) func(*Event, Keys) error {
 	return func(ev *Event, input Keys) error {
 		cmd := cmd
-		if len(input) > 0 {
+		if ok, _ := regexp.MatchString("[^%]%s", cmd); ok {
 			cmd = fmt.Sprintf(cmd, input.String())
-			fmt.Println(cmd)
 		}
 		ev.Uzbl.Send(cmd)
 		return nil
