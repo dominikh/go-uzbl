@@ -169,11 +169,11 @@ func (b *keyBind) matches(input Keys) bool {
 func NewInputManager(u *Uzbl) *InputManager {
 	im := &InputManager{uzbl: u, globalKeymap: &Keymap{DisplaySpaces: true}}
 	im.activeKeymap = im.globalKeymap
-	u.EM.AddHandler("KEY_PRESS", im.EvKeyPress)
-	u.EM.AddHandler("BIND", im.EvBind)
-	u.EM.AddHandler("INSERT_MODE", im.EvInsertMode)
-	u.EM.AddHandler("ESCAPE", im.EvEscape)
-	u.EM.AddHandler("INSTANCE_START", im.EvInstanceStart)
+	u.EM.AddHandler("KEY_PRESS", im.evKeyPress)
+	u.EM.AddHandler("BIND", im.evBind)
+	u.EM.AddHandler("INSERT_MODE", im.evInsertMode)
+	u.EM.AddHandler("ESCAPE", im.evEscape)
+	u.EM.AddHandler("INSTANCE_START", im.evInstanceStart)
 	u.EM.AddHandler("LOAD_START", im.evLoadStart)
 	return im
 }
@@ -198,7 +198,7 @@ func (im *InputManager) evLoadStart(*Event) error {
 	return nil
 }
 
-func (im *InputManager) EvKeyPress(ev *Event) error {
+func (im *InputManager) evKeyPress(ev *Event) error {
 	parts := ev.ParseDetail(-1)
 	mods, key := parseMod(parts[0]), parts[1]
 	if len(key) == 1 {
@@ -295,20 +295,20 @@ func (im *InputManager) setModeIndicator() {
 	im.uzbl.Send(fmt.Sprintf("set mode_indicator = %s", name))
 }
 
-func (im *InputManager) EvBind(ev *Event) error {
+func (im *InputManager) evBind(ev *Event) error {
 	args := ev.ParseDetail(3)
 	im.globalKeymap.Bind(args[0], CommandFn(args[1])) // TODO repeat
 	return nil
 }
 
-func (im *InputManager) EvInsertMode(ev *Event) error {
+func (im *InputManager) evInsertMode(ev *Event) error {
 	im.mode = insertMode
 	im.uzbl.Send("set forward_keys = 1")
 	im.setModeIndicator()
 	return nil
 }
 
-func (im *InputManager) EvEscape(ev *Event) error {
+func (im *InputManager) evEscape(ev *Event) error {
 	if im.activeKeymap.OnEscape != nil {
 		im.activeKeymap.OnEscape()
 	}
@@ -320,7 +320,7 @@ func (im *InputManager) EvEscape(ev *Event) error {
 	return nil
 }
 
-func (im *InputManager) EvInstanceStart(ev *Event) error {
+func (im *InputManager) evInstanceStart(ev *Event) error {
 	im.setModeIndicator()
 	return nil
 }
