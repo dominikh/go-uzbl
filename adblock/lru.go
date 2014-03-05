@@ -28,7 +28,7 @@ func (lru *LRU) promote(e *lruEntry) {
 
 func (lru *LRU) prune() {
 	// prune 5%
-	n := lru.capacity / 20
+	n := len(lru.m) - lru.capacity + (lru.capacity / 20)
 	if n < 1 {
 		n = 1
 	}
@@ -50,12 +50,13 @@ func (lru *LRU) Set(key pair, value bool) {
 		return
 	}
 
-	if len(lru.m) > lru.capacity {
-		lru.prune()
-	}
 	e = &lruEntry{v: value, key: key}
 	e.e = lru.l.PushFront(e)
 	lru.m[key] = e
+
+	if len(lru.m) > lru.capacity {
+		lru.prune()
+	}
 }
 
 func (lru *LRU) Get(key pair) (value bool, ok bool) {
