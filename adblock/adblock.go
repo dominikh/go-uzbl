@@ -33,7 +33,8 @@ type stats struct {
 }
 
 func (s *stats) String() string {
-	return fmt.Sprintf("Rules: %d, cache hits: %d, cache misses: %d, filtered: %d, exceptioned: %d, Avg matching time: %s",
+	return fmt.Sprintf("Rules: %d, cache hits: %d, cache misses: %d, filtered: %d, "+
+		"exceptioned: %d, Avg matching time: %s",
 		s.NumRules, s.CacheHits, s.CacheMisses, s.Filtered, s.Exceptions, s.AvgMatchingTime)
 }
 
@@ -44,6 +45,7 @@ type Adblock struct {
 	ExceptionsBlank []*Rule
 	Cache           *LRU
 	Stats           *stats
+	Hides           Hides
 }
 
 func New(cacheSize int) *Adblock {
@@ -58,6 +60,22 @@ func New(cacheSize int) *Adblock {
 }
 
 func (adblock *Adblock) AddRule(rule *Rule, shortcut string) {
+	if rule.Hide {
+		// TODO stats
+		var domains Domains
+		var exclude Domains
+		for _, domain := range rule.Domains {
+			if domain[0] == '~' {
+				exclude = append(exclude, NewDomain(domain[1:]))
+			} else {
+				domains = append(domains, NewDomain(domain))
+			}
+		}
+		adblock.Hides = append(adblock.Hides,
+			&Hide{Domains: domains, Exclude: exclude, Selector: rule.Selector})
+		return
+	}
+
 	adblock.Stats.NumRules++
 	if len(shortcut) == 0 {
 		if rule.Exception {
@@ -92,25 +110,6 @@ func (adblock *Adblock) LoadRules(r io.Reader) {
 			adblock.AddRule(rule, shortcut)
 		}
 	}
-}
-
-func parseHide(in string) *Rule {
-	// TODO support exception rules
-	h := &Rule{Hide: true}
-	parts := strings.SplitN(in, "##", 2)
-	if len(parts) == 0 {
-		panic("not a valid element hiding rule")
-	}
-	if len(parts) == 1 {
-		h.Selector = parts[0]
-		return h
-	}
-
-	domains := strings.Split(parts[0], ",")
-	h.Domains = domains
-	h.Selector = parts[1]
-
-	return h
 }
 
 type Rule struct {
@@ -180,16 +179,7 @@ func parseRule(in string) (rule *Rule, shortcut string) {
 		return nil, ""
 	}
 
-	shortcuts := reShortcut.FindAllString(in, -1)
-	var longestShortcut string
-	if len(shortcuts) > 0 {
-		longestShortcut = shortcuts[0]
-		for _, shortcut := range shortcuts {
-			if len(shortcut) > len(longestShortcut) {
-				longestShortcut = shortcut
-			}
-		}
-	}
+	shortcut = extractShortcut(in)
 
 	// XXX
 	if in == "|http:" {
@@ -272,13 +262,12 @@ func parseRule(in string) (rule *Rule, shortcut string) {
 	} else {
 		r.Hash = hashstr(in)
 	}
-	return r, longestShortcut
+	return r, shortcut
 }
 
 func Parse(in string) (rule *Rule, shortcut string) {
 	if strings.Contains(in, "##") {
-		// return parseHide(in)
-		return nil, ""
+		return parseHide(in)
 	}
 	return parseRule(in)
 }
@@ -317,6 +306,11 @@ func filterRules(req string, rules map[hash][]*Rule) []*Rule {
 		out = append(out, rules[shortcut]...)
 	}
 	return out
+}
+
+func (adblock *Adblock) Hide(srcDomain string) Hides {
+	d := NewDomain(srcDomain)
+	return adblock.Hides.Find(d)
 }
 
 func (adblock *Adblock) Match(src string, req string) (*Rule, bool) {
@@ -403,4 +397,20 @@ func strMatch(s string, hash hash) bool {
 		}
 	}
 	return false
+}
+
+func extractShortcut(in string) string {
+	shortcuts := reShortcut.FindAllString(in, -1)
+	var shortcut string
+	if len(shortcuts) == 0 {
+		return ""
+	}
+	shortcut = shortcuts[0]
+	for _, shortcut := range shortcuts {
+		if len(shortcut) > len(shortcut) {
+			shortcut = shortcut
+		}
+
+	}
+	return shortcut
 }
