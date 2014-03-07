@@ -83,8 +83,8 @@ and append a file to the generated stylesheet.`)
 		f.Close()
 	}
 
-	log.Printf("Loaded %d rules, %d element hiding rules, %d shortcuts, %d rules without shortcuts",
-		ab.Stats.NumRules, ab.Stats.NumHides, len(ab.Rules)+len(ab.Exceptions), ab.Stats.BlankShortcuts)
+	log.Printf("Loaded %d rules, %d element hiding rules, %d keywords, %d rules without keywords",
+		ab.Stats.NumRules, ab.Stats.NumHides, len(ab.Rules)+len(ab.Exceptions), ab.Stats.BlankKeywords)
 
 	addr, err := net.ResolveUnixAddr("unix", fSocket)
 	if err != nil {

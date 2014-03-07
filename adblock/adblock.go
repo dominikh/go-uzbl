@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-var reShortcut = regexp.MustCompile(`[a-zA-Z0-9&?]{3,}`)
+var reKeyword = regexp.MustCompile(`[a-zA-Z0-9&?]{3,}`)
 
 type hash struct {
 	hash uint32
@@ -26,7 +26,7 @@ type pair struct {
 type stats struct {
 	NumRules        int
 	NumHides        int
-	BlankShortcuts  int
+	BlankKeywords   int
 	CacheHits       int
 	CacheMisses     int
 	Filtered        int
@@ -59,7 +59,7 @@ func New(cacheSize int) *Adblock {
 	}
 }
 
-func (adblock *Adblock) AddRule(rule *Rule, shortcut string) {
+func (adblock *Adblock) AddRule(rule *Rule, keyword string) {
 	if rule.Hide {
 		adblock.Stats.NumHides++
 
@@ -78,10 +78,10 @@ func (adblock *Adblock) AddRule(rule *Rule, shortcut string) {
 	}
 
 	adblock.Stats.NumRules++
-	if shortcut == "" {
-		adblock.Stats.BlankShortcuts++
+	if keyword == "" {
+		adblock.Stats.BlankKeywords++
 	}
-	hash := hashstr(shortcut)
+	hash := hashstr(keyword)
 	if rule.Exception {
 		adblock.Exceptions[hash] = append(adblock.Exceptions[hash], rule)
 	} else {
@@ -100,10 +100,10 @@ func (adblock *Adblock) LoadRules(r io.Reader) {
 		if line == "" {
 			continue
 		}
-		rule, shortcut := Parse(line)
+		rule, keyword := Parse(line)
 
 		if rule != nil {
-			adblock.AddRule(rule, shortcut)
+			adblock.AddRule(rule, keyword)
 		}
 	}
 
@@ -169,7 +169,7 @@ func (r *Rule) Match(src string, req string) (ret bool) {
 	return r.Regexp.MatchString(req) && r.matchOrigin(src, req)
 }
 
-func parseRule(in string) (rule *Rule, shortcut string) {
+func parseRule(in string) (rule *Rule, keyword string) {
 	r := &Rule{}
 	var matchCase bool
 
@@ -192,7 +192,7 @@ func parseRule(in string) (rule *Rule, shortcut string) {
 		return nil, ""
 	}
 
-	shortcut = extractShortcut(in)
+	keyword = extractKeyword(in)
 
 	// XXX
 	if in == "|http:" {
@@ -275,10 +275,10 @@ func parseRule(in string) (rule *Rule, shortcut string) {
 	} else {
 		r.Hash = hashstr(in)
 	}
-	return r, shortcut
+	return r, keyword
 }
 
-func Parse(in string) (rule *Rule, shortcut string) {
+func Parse(in string) (rule *Rule, keyword string) {
 	if strings.Contains(in, "##") {
 		return parseHide(in)
 	}
@@ -312,11 +312,11 @@ func matchesAny(src, req string, rules []*Rule) (*Rule, bool) {
 
 func filterRules(req string, rules map[hash][]*Rule) []*Rule {
 	var out []*Rule
-	for shortcut := range rules {
-		if !strMatch(req, shortcut) {
+	for keyword := range rules {
+		if !strMatch(req, keyword) {
 			continue
 		}
-		out = append(out, rules[shortcut]...)
+		out = append(out, rules[keyword]...)
 	}
 	return out
 }
@@ -410,15 +410,15 @@ func strMatch(s string, hash hash) bool {
 	return false
 }
 
-func extractShortcut(in string) string {
-	shortcuts := reShortcut.FindAllString(in, -1)
-	if len(shortcuts) == 0 {
+func extractKeyword(in string) string {
+	keywords := reKeyword.FindAllString(in, -1)
+	if len(keywords) == 0 {
 		return ""
 	}
-	longest := shortcuts[0]
-	for _, shortcut := range shortcuts {
-		if len(shortcut) > len(longest) {
-			longest = shortcut
+	longest := keywords[0]
+	for _, keyword := range keywords {
+		if len(keyword) > len(longest) {
+			longest = keyword
 		}
 
 	}
