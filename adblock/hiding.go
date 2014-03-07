@@ -1,6 +1,7 @@
 package adblock
 
 import (
+	"fmt"
 	"io"
 	"strings"
 )
@@ -28,21 +29,35 @@ func parseHide(in string) (*Rule, string) {
 
 type Domain []string
 
-func reverse(in []string) []string {
+func (d Domain) String() string {
+	return strings.Join(reverseCopy(d), ".")
+}
+
+func reverse(in []string) {
 	if len(in) < 2 {
-		return in
+		return
 	}
 
 	for i := 0; i < len(in)/2; i++ {
 		in[i], in[len(in)-1-i] = in[len(in)-1-i], in[i]
 	}
+}
 
-	return in
+func reverseCopy(in []string) []string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(in))
+	for i := len(in) - 1; i >= 0; i-- {
+		out = append(out, in[i])
+	}
+	return out
 }
 
 func NewDomain(s string) Domain {
 	out := strings.Split(s, ".")
-	return reverse(out)
+	reverse(out)
+	return out
 }
 
 // Check if other matches d. Note that c.a.b matches a.b, but not the
@@ -61,6 +76,14 @@ func (d Domain) Match(other Domain) bool {
 
 type Domains []Domain
 
+func (ds Domains) String() string {
+	ss := make([]string, len(ds))
+	for i, d := range ds {
+		ss[i] = d.String()
+	}
+	return strings.Join(ss, ",")
+}
+
 func (ds Domains) Match(d Domain) bool {
 	for _, e := range ds {
 		if e.Match(d) {
@@ -71,9 +94,9 @@ func (ds Domains) Match(d Domain) bool {
 }
 
 type Hide struct {
-	Domains  Domains
-	Exclude  Domains
-	Selector string
+	Domains   Domains
+	Exclude   Domains
+	Selectors []string
 }
 
 func (hg *Hide) Match(d Domain) bool {
@@ -106,8 +129,14 @@ func (hs Hides) Find(d Domain) Hides {
 
 func (hs Hides) WriteStylesheet(w io.Writer) (n int, err error) {
 	for _, h := range hs {
-		w.Write([]byte(h.Selector))
-		w.Write([]byte("{display: none !important;}\n"))
+		d := h.Domains.String()
+		e := h.Exclude.String()
+		fmt.Fprintf(w, "/* domains: %q, exclude: %q */\n", d, e)
+		for _, s := range h.Selectors {
+			fmt.Fprint(w, s)
+			fmt.Fprintln(w, "{display: none !important;}")
+		}
+		fmt.Fprintln(w)
 	}
 	return n, err
 }

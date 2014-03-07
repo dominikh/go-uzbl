@@ -72,7 +72,7 @@ func (adblock *Adblock) AddRule(rule *Rule, shortcut string) {
 			}
 		}
 		adblock.Hides = append(adblock.Hides,
-			&Hide{Domains: domains, Exclude: exclude, Selector: rule.Selector})
+			&Hide{Domains: domains, Exclude: exclude, Selectors: []string{rule.Selector}})
 		return
 	}
 
@@ -109,6 +109,23 @@ func (adblock *Adblock) LoadRules(r io.Reader) {
 		if rule != nil {
 			adblock.AddRule(rule, shortcut)
 		}
+	}
+
+	newHides := make(map[string]*Hide)
+	for _, hide := range adblock.Hides {
+		key := hide.Domains.String() + "|" + hide.Exclude.String()
+		var h *Hide
+		var ok bool
+		if h, ok = newHides[key]; !ok {
+			h = &Hide{Domains: hide.Domains, Exclude: hide.Exclude}
+			newHides[key] = h
+		}
+		h.Selectors = append(h.Selectors, hide.Selectors...)
+	}
+
+	adblock.Hides = nil
+	for _, hide := range newHides {
+		adblock.Hides = append(adblock.Hides, hide)
 	}
 }
 
