@@ -8,6 +8,8 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"honnef.co/go/uzbl/adblock"
@@ -98,6 +100,14 @@ and append a file to the generated stylesheet.`)
 		fmt.Fprintln(os.Stderr, "Could not open socket:", err)
 		os.Exit(3)
 	}
+
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, os.Interrupt, os.Kill, syscall.SIGTERM)
+	go func() {
+		<-ch
+		l.Close()
+		os.Exit(0)
+	}()
 
 	for {
 		c, err := l.Accept()
