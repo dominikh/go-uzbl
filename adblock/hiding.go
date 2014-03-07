@@ -105,25 +105,9 @@ func (hs Hides) Find(d Domain) Hides {
 }
 
 func (hs Hides) WriteStylesheet(w io.Writer) (n int, err error) {
-	for i, h := range hs {
+	for _, h := range hs {
 		w.Write([]byte(h.Selector))
 		w.Write([]byte("{display: none !important;}\n"))
-		continue
-		n_, err := w.Write([]byte(h.Selector))
-		n += n_
-		if err != nil {
-			return n, err
-		}
-		if i != len(hs)-1 {
-			n_, err = w.Write([]byte{',', '\n'})
-			n += n_
-			if err != nil {
-				return n, err
-			}
-			continue
-		}
-		n_, err = w.Write([]byte("{display: none !important;}"))
-		n += n_
 	}
 	return n, err
 }
