@@ -412,16 +412,15 @@ func strMatch(s string, hash hash) bool {
 
 func extractShortcut(in string) string {
 	shortcuts := reShortcut.FindAllString(in, -1)
-	var shortcut string
 	if len(shortcuts) == 0 {
 		return ""
 	}
-	shortcut = shortcuts[0]
+	longest := shortcuts[0]
 	for _, shortcut := range shortcuts {
-		if len(shortcut) > len(shortcut) {
-			shortcut = shortcut
+		if len(shortcut) > len(longest) {
+			longest = shortcut
 		}
 
 	}
-	return shortcut
+	return longest
 }
