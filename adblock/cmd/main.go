@@ -57,7 +57,8 @@ Additionally, you need to tell uzbl to connect to the adblock socket, e.g. via
 Since webkit1 only supports a single user stylesheet, and adblock
 uses it for element hiding, adblock provides an option to read
 and append a file to the generated stylesheet.`)
-		fmt.Fprintf(os.Stderr, "\nUsage of %s:\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "\nUsage: %s [-cache cache-size] [-ad-stylesheet file] [-user-stylesheet file] "+
+			"-socket socket rule files...\n", os.Args[0])
 		flag.PrintDefaults()
 	}
 	flag.StringVar(&fSocket, "socket", "", "The socket to create and listen on")
