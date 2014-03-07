@@ -26,6 +26,7 @@ type pair struct {
 type stats struct {
 	NumRules        int
 	NumHides        int
+	BlankShortcuts  int
 	CacheHits       int
 	CacheMisses     int
 	Filtered        int
@@ -40,13 +41,11 @@ func (s *stats) String() string {
 }
 
 type Adblock struct {
-	Rules           map[hash][]*Rule
-	RulesBlank      []*Rule
-	Exceptions      map[hash][]*Rule
-	ExceptionsBlank []*Rule
-	Cache           *LRU
-	Stats           *stats
-	Hides           Hides
+	Rules      map[hash][]*Rule
+	Exceptions map[hash][]*Rule
+	Cache      *LRU
+	Stats      *stats
+	Hides      Hides
 }
 
 func New(cacheSize int) *Adblock {
@@ -79,19 +78,14 @@ func (adblock *Adblock) AddRule(rule *Rule, shortcut string) {
 	}
 
 	adblock.Stats.NumRules++
-	if len(shortcut) == 0 {
-		if rule.Exception {
-			adblock.ExceptionsBlank = append(adblock.ExceptionsBlank, rule)
-		} else {
-			adblock.RulesBlank = append(adblock.RulesBlank, rule)
-		}
+	if shortcut == "" {
+		adblock.Stats.BlankShortcuts++
+	}
+	hash := hashstr(shortcut)
+	if rule.Exception {
+		adblock.Exceptions[hash] = append(adblock.Exceptions[hash], rule)
 	} else {
-		hash := hashstr(shortcut)
-		if rule.Exception {
-			adblock.Exceptions[hash] = append(adblock.Exceptions[hash], rule)
-		} else {
-			adblock.Rules[hash] = append(adblock.Rules[hash], rule)
-		}
+		adblock.Rules[hash] = append(adblock.Rules[hash], rule)
 	}
 }
 
@@ -354,7 +348,6 @@ func (adblock *Adblock) Match(src string, req string) (*Rule, bool) {
 	adblock.Stats.CacheMisses++
 
 	toCheck := filterRules(req, adblock.Rules)
-	toCheck = append(toCheck, adblock.RulesBlank...)
 	rule, ret = matchesAny(src, req, toCheck)
 	if !ret {
 		adblock.Cache.Set(pair, false)
@@ -362,7 +355,6 @@ func (adblock *Adblock) Match(src string, req string) (*Rule, bool) {
 	}
 
 	toCheck = filterRules(req, adblock.Exceptions)
-	toCheck = append(toCheck, adblock.ExceptionsBlank...)
 	exc, ret := matchesAny(src, req, toCheck)
 	if ret {
 		adblock.Stats.Exceptions++
