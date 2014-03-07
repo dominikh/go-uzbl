@@ -82,6 +82,7 @@ and append a file to the generated stylesheet.`)
 		ab.LoadRules(f)
 		f.Close()
 	}
+	ab.Optimize()
 
 	log.Printf("Loaded %d rules, %d element hiding rules, %d keywords, %d rules without keywords",
 		ab.Stats.NumRules, ab.Stats.NumHides, len(ab.Rules)+len(ab.Exceptions), ab.Stats.BlankKeywords)

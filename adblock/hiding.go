@@ -7,19 +7,27 @@ import (
 )
 
 func parseHide(in string) (*Rule, string) {
-	// TODO support exception rules, #@#
-	if strings.Index(in, "#@#") > -1 {
-		return nil, ""
-	}
 	h := &Rule{Hide: true}
-	parts := strings.SplitN(in, "##", 2)
+	var parts []string
+	var exception bool
+	if strings.Index(in, "#@#") > -1 {
+		exception = true
+		parts = strings.SplitN(in, "#@#", 2)
+	} else {
+		parts = strings.SplitN(in, "##", 2)
+	}
 	if len(parts) == 0 || len(parts) == 1 {
 		return nil, ""
-		// panic("not a valid element hiding rule")
 	}
 
 	if len(parts[0]) > 0 {
-		h.Domains = strings.Split(parts[0], ",")
+		domains := strings.Split(parts[0], ",")
+		if exception {
+			for i, s := range domains {
+				domains[i] = "~" + s
+			}
+		}
+		h.Domains = domains
 	}
 
 	h.Selector = parts[1]

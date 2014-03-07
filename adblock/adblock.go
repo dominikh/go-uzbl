@@ -107,8 +107,42 @@ func (adblock *Adblock) LoadRules(r io.Reader) {
 		}
 	}
 
+	adblock.Hides = mergeOnSelector(adblock.Hides)
+}
+
+// Optimize optimizes the stored rules. After calling this function,
+// LoadRules must not be called anymore.
+func (adblock *Adblock) Optimize() {
+	adblock.Hides = mergeOnDomain(adblock.Hides)
+}
+
+func mergeOnSelector(in []*Hide) []*Hide {
+	var out []*Hide
+
 	newHides := make(map[string]*Hide)
-	for _, hide := range adblock.Hides {
+	for _, hide := range in {
+		key := strings.Join(hide.Selectors, ",")
+		var h *Hide
+		var ok bool
+		if h, ok = newHides[key]; !ok {
+			h = &Hide{Selectors: hide.Selectors}
+			newHides[key] = h
+		}
+		h.Domains = append(h.Domains, hide.Domains...)
+		h.Exclude = append(h.Domains, hide.Exclude...)
+	}
+
+	for _, hide := range newHides {
+		out = append(out, hide)
+	}
+	return out
+}
+
+func mergeOnDomain(in []*Hide) []*Hide {
+	var out []*Hide
+
+	newHides := make(map[string]*Hide)
+	for _, hide := range in {
 		key := hide.Domains.String() + "|" + hide.Exclude.String()
 		var h *Hide
 		var ok bool
@@ -119,10 +153,10 @@ func (adblock *Adblock) LoadRules(r io.Reader) {
 		h.Selectors = append(h.Selectors, hide.Selectors...)
 	}
 
-	adblock.Hides = nil
 	for _, hide := range newHides {
-		adblock.Hides = append(adblock.Hides, hide)
+		out = append(out, hide)
 	}
+	return out
 }
 
 type Rule struct {
@@ -279,7 +313,7 @@ func parseRule(in string) (rule *Rule, keyword string) {
 }
 
 func Parse(in string) (rule *Rule, keyword string) {
-	if strings.Contains(in, "##") {
+	if strings.Contains(in, "##") || strings.Contains(in, "#@#") {
 		return parseHide(in)
 	}
 	return parseRule(in)
