@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"honnef.co/go/uzbl/event_manager"
 )
 
 type KeyHandler struct {
@@ -21,28 +23,22 @@ type geom struct {
 	Height int
 }
 
-type Handler func(*Event) error
-
-type Uzbl struct {
-	stdin     io.WriteCloser
-	stdout    io.ReadCloser
-	Variables *VariableStore
-	geometry  geom
-	EM        *EventManager
-	IM        *InputManager
+type Registerable interface {
+	Init()
 }
 
-func NewUzbl() *Uzbl {
-	u := &Uzbl{}
+type Uzbl struct {
+	stdin      io.WriteCloser
+	stdout     io.ReadCloser
+	Variables  *VariableStore
+	geometry   geom
+	EM         *event_manager.Manager
+	IM         *InputManager
+	registered []Registerable
+}
 
-	// FIXME it's really ugly that the order of this matters
-	u.Variables = NewVariableStore()
-	u.EM = NewEventManager(u)
-	u.IM = NewInputManager(u)
-
-	u.EM.AddHandler("VARIABLE_SET", u.Variables.evVariableSet)
-	u.EM.AddHandler("GEOMETRY_CHANGED", u.evGeometryChanged)
-	return u
+func (u *Uzbl) Register(r ...Registerable) {
+	u.registered = append(u.registered, r...)
 }
 
 type ErrUnknownType struct {
@@ -82,7 +78,17 @@ func parseInts(ss ...string) ([]int, error) {
 	return out, nil
 }
 
-func (u *Uzbl) evGeometryChanged(ev *Event) error {
+func (u *Uzbl) evOnEvent(ev *event_manager.Event) error {
+	parts := ev.ParseDetail(2)
+	evName, payload := parts[0], parts[1]
+	u.EM.AddHandler(evName, func(*event_manager.Event) error {
+		u.Send(payload)
+		return nil
+	})
+	return nil
+}
+
+func (u *Uzbl) evGeometryChanged(ev *event_manager.Event) error {
 	s, err := parseString(ev.Detail)
 	if err != nil {
 		return err
@@ -131,7 +137,20 @@ func (u *Uzbl) Start() {
 	u.stdin = stdin
 	u.stdout = stdout
 
-	go u.EM.Connect(stdout)
+	u.EM = event_manager.New(stdout)
+	u.Variables = NewVariableStore()
+	u.IM = NewInputManager(u)
+	u.EM.AddHandler("VARIABLE_SET", u.Variables.evVariableSet)
+	u.EM.AddHandler("GEOMETRY_CHANGED", u.evGeometryChanged)
+	u.EM.AddHandler("ON_EVENT", u.evOnEvent)
+
+	// FIXME it's really ugly that the order of this matters
+
+	for _, r := range u.registered {
+		r.Init()
+	}
+
+	go u.EM.Listen()
 	err = cmd.Start()
 	if err != nil {
 		panic(err)
@@ -147,13 +166,13 @@ func (u *Uzbl) Send(cmd string) {
 	u.stdin.Write([]byte{'\n'})
 }
 
-func CommandFn(cmd string) func(*Event, Keys) error {
-	return func(ev *Event, input Keys) error {
+func (u *Uzbl) CommandFn(cmd string) func(*event_manager.Event, Keys) error {
+	return func(ev *event_manager.Event, input Keys) error {
 		cmd := cmd
 		if ok, _ := regexp.MatchString("[^%]%s", cmd); ok {
 			cmd = fmt.Sprintf(cmd, input.String())
 		}
-		ev.Uzbl.Send(cmd)
+		u.Send(cmd)
 		return nil
 	}
 }

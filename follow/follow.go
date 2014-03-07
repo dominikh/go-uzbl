@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"honnef.co/go/uzbl"
+	"honnef.co/go/uzbl/event_manager"
 )
 
 type Follow struct {
@@ -13,7 +14,10 @@ type Follow struct {
 }
 
 func New(u *uzbl.Uzbl) *Follow {
-	f := &Follow{uzbl: u}
+	return &Follow{uzbl: u}
+}
+
+func (f *Follow) Init() {
 
 	f.keymap = &uzbl.Keymap{
 		Prompt:   "Follow:",
@@ -21,13 +25,12 @@ func New(u *uzbl.Uzbl) *Follow {
 	}
 	f.keymap.Bind("<*>", f.evKeypress)
 
-	u.EM.AddHandler("LOAD_COMMIT", f.evLoadCommit)
-	u.EM.AddHandler("FOLLOW", f.evFollow)
-	u.EM.AddHandler("FOLLOWING", f.evFollowing)
-	return f
+	f.uzbl.EM.AddHandler("LOAD_COMMIT", f.evLoadCommit)
+	f.uzbl.EM.AddHandler("FOLLOW", f.evFollow)
+	f.uzbl.EM.AddHandler("FOLLOWING", f.evFollowing)
 }
 
-func (f *Follow) evLoadCommit(*uzbl.Event) error {
+func (f *Follow) evLoadCommit(*event_manager.Event) error {
 	// FIXME relative path
 	// TODO see if we can use a data uri for this
 	f.uzbl.Send("js page file /home/dominikh/.config/uzbl/hints.js")
@@ -38,18 +41,18 @@ func (f *Follow) evEscape() {
 	f.uzbl.Send("js page string uzbl.LinkHints.deactivateMode()")
 }
 
-func (f *Follow) evKeypress(ev *uzbl.Event, input uzbl.Keys) error {
+func (f *Follow) evKeypress(ev *event_manager.Event, input uzbl.Keys) error {
 	f.uzbl.Send(fmt.Sprintf("event FOLLOWING @< uzbl.LinkHints.Blegh('%s') >@", input))
 	return nil
 }
 
-func (f *Follow) evFollow(ev *uzbl.Event) error {
+func (f *Follow) evFollow(ev *event_manager.Event) error {
 	f.uzbl.IM.SetKeymap(f.keymap)
 	f.uzbl.Send("event FOLLOWING @< uzbl.LinkHints.Blegh('') >@")
 	return nil
 }
 
-func (f *Follow) evFollowing(ev *uzbl.Event) error {
+func (f *Follow) evFollowing(ev *event_manager.Event) error {
 	parts := strings.SplitN(ev.Detail, " ", 2)
 	if len(parts) == 0 {
 		return nil

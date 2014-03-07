@@ -5,17 +5,22 @@ import (
 	"strconv"
 
 	"honnef.co/go/uzbl"
+	"honnef.co/go/uzbl/event_manager"
 )
 
-type ScrollIndicator struct{}
-
-func New(u *uzbl.Uzbl) *ScrollIndicator {
-	s := &ScrollIndicator{}
-	u.EM.AddHandler("SCROLL_VERT", s.evScrollVert)
-	return s
+type ScrollIndicator struct {
+	uzbl *uzbl.Uzbl
 }
 
-func (s *ScrollIndicator) evScrollVert(ev *uzbl.Event) error {
+func New(u *uzbl.Uzbl) *ScrollIndicator {
+	return &ScrollIndicator{u}
+}
+
+func (s *ScrollIndicator) Init() {
+	s.uzbl.EM.AddHandler("SCROLL_VERT", s.evScrollVert)
+}
+
+func (s *ScrollIndicator) evScrollVert(ev *event_manager.Event) error {
 	numbers, err := parseFloats(ev.ParseDetail(4)...)
 	if err != nil {
 		return err
@@ -36,7 +41,7 @@ func (s *ScrollIndicator) evScrollVert(ev *uzbl.Event) error {
 		out = fmt.Sprintf("%.2f%%", float64(int((10000*p)+0.5))/100)
 	}
 
-	ev.Uzbl.Send(fmt.Sprintf("set scroll_message %s", out))
+	s.uzbl.Send(fmt.Sprintf("set scroll_message %s", out))
 	return nil
 }
 

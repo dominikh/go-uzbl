@@ -8,9 +8,11 @@ import (
 )
 
 func main() {
-	u := uzbl.NewUzbl()
-	progress.New(u) // dangling value, sort of ugly
-	scroll.New(u)
-	follow.New(u)
+	u := &uzbl.Uzbl{}
+	u.Register(
+		progress.New(u),
+		scroll.New(u),
+		follow.New(u),
+	)
 	u.Start()
 }

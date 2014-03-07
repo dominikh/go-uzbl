@@ -3,6 +3,8 @@ package uzbl
 import (
 	"fmt"
 	"strings"
+
+	"honnef.co/go/uzbl/event_manager"
 )
 
 type Keys []Key
@@ -138,7 +140,7 @@ func parseBind(s string) *keyBind {
 
 type keyBind struct {
 	bind        Keys
-	fn          func(ev *Event, input Keys) error
+	fn          func(ev *event_manager.Event, input Keys) error
 	incremental bool
 	// TODO support the ! modifier?
 }
@@ -193,7 +195,7 @@ type InputManager struct {
 	mode         int
 }
 
-func (im *InputManager) evRootActive(*Event) error {
+func (im *InputManager) evRootActive(*event_manager.Event) error {
 	// FIXME there seems to be a bug in uzbl that triggers a
 	// FOCUS_ELEMENT right after the first ROOT_ACTIVE.
 	im.mode = commandMode
@@ -202,7 +204,7 @@ func (im *InputManager) evRootActive(*Event) error {
 	return nil
 }
 
-func (im *InputManager) evFocusElement(ev *Event) error {
+func (im *InputManager) evFocusElement(ev *event_manager.Event) error {
 	fmt.Println(ev.Detail)
 	el, err := parseString(ev.Detail)
 	if err != nil {
@@ -219,14 +221,14 @@ func (im *InputManager) evFocusElement(ev *Event) error {
 	return nil
 }
 
-func (im *InputManager) evLoadStart(*Event) error {
+func (im *InputManager) evLoadStart(*event_manager.Event) error {
 	im.mode = commandMode
 	im.uzbl.Send("set forward_keys 0")
 	im.setModeIndicator()
 	return nil
 }
 
-func (im *InputManager) evKeyPress(ev *Event) error {
+func (im *InputManager) evKeyPress(ev *event_manager.Event) error {
 	parts := ev.ParseDetail(-1)
 	mods, key := parseMod(parts[0]), parts[1]
 	if len(key) == 1 {
@@ -323,20 +325,20 @@ func (im *InputManager) setModeIndicator() {
 	im.uzbl.Send(fmt.Sprintf("set mode_indicator %s", name))
 }
 
-func (im *InputManager) evBind(ev *Event) error {
+func (im *InputManager) evBind(ev *event_manager.Event) error {
 	args := ev.ParseDetail(3)
-	im.globalKeymap.Bind(args[0], CommandFn(args[1])) // TODO repeat
+	im.globalKeymap.Bind(args[0], im.uzbl.CommandFn(args[1])) // TODO repeat
 	return nil
 }
 
-func (im *InputManager) evInsertMode(ev *Event) error {
+func (im *InputManager) evInsertMode(ev *event_manager.Event) error {
 	im.mode = insertMode
 	im.uzbl.Send("set forward_keys 1")
 	im.setModeIndicator()
 	return nil
 }
 
-func (im *InputManager) evEscape(ev *Event) error {
+func (im *InputManager) evEscape(ev *event_manager.Event) error {
 	if im.activeKeymap.OnEscape != nil {
 		im.activeKeymap.OnEscape()
 	}
@@ -348,7 +350,7 @@ func (im *InputManager) evEscape(ev *Event) error {
 	return nil
 }
 
-func (im *InputManager) evInstanceStart(ev *Event) error {
+func (im *InputManager) evInstanceStart(ev *event_manager.Event) error {
 	im.setModeIndicator()
 	return nil
 }
@@ -375,7 +377,7 @@ type Keymap struct {
 	OnEscape      func()
 }
 
-func (k *Keymap) Bind(s string, fn func(ev *Event, input Keys) error) {
+func (k *Keymap) Bind(s string, fn func(ev *event_manager.Event, input Keys) error) {
 	bind := parseBind(s)
 	bind.fn = fn
 	k.binds = append(k.binds, bind)

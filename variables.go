@@ -3,6 +3,8 @@ package uzbl
 import (
 	"strconv"
 	"strings"
+
+	"honnef.co/go/uzbl/event_manager"
 )
 
 type VariableStore struct {
@@ -52,7 +54,7 @@ func (vs *VariableStore) GetString(name string, def string) string {
 	return def
 }
 
-func (v *VariableStore) evVariableSet(ev *Event) error {
+func (v *VariableStore) evVariableSet(ev *event_manager.Event) error {
 	parts := strings.SplitN(ev.Detail, " ", 3)
 	name, typ, value := parts[0], parts[1], parts[2]
 	if value == `''` || len(value) < 2 {

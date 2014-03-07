@@ -6,15 +6,11 @@ import (
 	"strings"
 
 	"honnef.co/go/uzbl"
+	"honnef.co/go/uzbl/event_manager"
 )
 
 func New(u *uzbl.Uzbl) *ProgressBar {
-	pb := &ProgressBar{uzbl: u}
-	u.EM.AddHandler("LOAD_COMMIT", pb.evLoadCommit)
-	u.EM.AddHandler("LOAD_PROGRESS", pb.evLoadProgress)
-	u.EM.AddHandler("LOAD_START", pb.evLoadStart)
-	u.EM.AddHandler("LOAD_FINISH", pb.evLoadFinish)
-	return pb
+	return &ProgressBar{uzbl: u}
 }
 
 type ProgressBar struct {
@@ -22,23 +18,30 @@ type ProgressBar struct {
 	updates int
 }
 
-func (p *ProgressBar) evLoadFinish(*uzbl.Event) error {
+func (p *ProgressBar) Init() {
+	p.uzbl.EM.AddHandler("LOAD_COMMIT", p.evLoadCommit)
+	p.uzbl.EM.AddHandler("LOAD_PROGRESS", p.evLoadProgress)
+	p.uzbl.EM.AddHandler("LOAD_START", p.evLoadStart)
+	p.uzbl.EM.AddHandler("LOAD_FINISH", p.evLoadFinish)
+}
+
+func (p *ProgressBar) evLoadFinish(*event_manager.Event) error {
 	p.uzbl.Send(`set status_message <span foreground="gold">done</span>`)
 	return nil
 }
 
-func (p *ProgressBar) evLoadStart(*uzbl.Event) error {
+func (p *ProgressBar) evLoadStart(*event_manager.Event) error {
 	p.uzbl.Send(`set status_message <span foreground="khaki">wait</span>`)
 	return nil
 }
 
-func (p *ProgressBar) evLoadCommit(ev *uzbl.Event) error {
+func (p *ProgressBar) evLoadCommit(ev *event_manager.Event) error {
 	p.updates = 0
 	p.uzbl.Send(`set status_message <span foreground="green">recv</span>`)
-	return p.evLoadProgress(ev)
+	return nil
 }
 
-func (p *ProgressBar) evLoadProgress(ev *uzbl.Event) error {
+func (p *ProgressBar) evLoadProgress(ev *event_manager.Event) error {
 	p.updates++
 	progress := 100
 	var err error
@@ -49,19 +52,19 @@ func (p *ProgressBar) evLoadProgress(ev *uzbl.Event) error {
 		}
 	}
 
-	format := ev.Uzbl.Variables.GetString("progress.format", "[%d>%p]%c")
-	swidth := ev.Uzbl.Variables.GetString("progress.width", "8")
+	format := p.uzbl.Variables.GetString("progress.format", "[%d>%p]%c")
+	swidth := p.uzbl.Variables.GetString("progress.width", "8")
 	width, err := strconv.Atoi(swidth)
 	if err != nil {
 		return err
 	}
-	doneSymbol := ev.Uzbl.Variables.GetString("progress.done", "=")
-	pendingSymbol := ev.Uzbl.Variables.GetString("progress.pending", " ")
+	doneSymbol := p.uzbl.Variables.GetString("progress.done", "=")
+	pendingSymbol := p.uzbl.Variables.GetString("progress.pending", " ")
 	if pendingSymbol == "" {
 		pendingSymbol = " "
 	}
 
-	spinner := ev.Uzbl.Variables.GetString("progress.spinner", "-\\|/")
+	spinner := p.uzbl.Variables.GetString("progress.spinner", "-\\|/")
 	index := 0
 	if progress != 100 {
 		index = p.updates % len(spinner)
@@ -71,7 +74,7 @@ func (p *ProgressBar) evLoadProgress(ev *uzbl.Event) error {
 		spinner = `\\`
 	}
 
-	sprites := ev.Uzbl.Variables.GetString("progress.sprites", "loading")
+	sprites := p.uzbl.Variables.GetString("progress.sprites", "loading")
 	index = int(((float64(progress)/100.0)*float64(len(sprites)))+0.5) - 1
 	sprite := string(sprites[index])
 	if sprite == `\` {
@@ -123,6 +126,6 @@ func (p *ProgressBar) evLoadProgress(ev *uzbl.Event) error {
 		output += string(c)
 	}
 
-	ev.Uzbl.Send(fmt.Sprintf("set progress.output %s", output))
+	p.uzbl.Send(fmt.Sprintf("set progress.output %s", output))
 	return nil
 }
