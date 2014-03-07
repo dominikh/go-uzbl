@@ -25,6 +25,7 @@ type pair struct {
 
 type stats struct {
 	NumRules        int
+	NumHides        int
 	CacheHits       int
 	CacheMisses     int
 	Filtered        int
@@ -33,9 +34,9 @@ type stats struct {
 }
 
 func (s *stats) String() string {
-	return fmt.Sprintf("Rules: %d, cache hits: %d, cache misses: %d, filtered: %d, "+
+	return fmt.Sprintf("cache hits: %d, cache misses: %d, filtered: %d, "+
 		"exceptioned: %d, Avg matching time: %s",
-		s.NumRules, s.CacheHits, s.CacheMisses, s.Filtered, s.Exceptions, s.AvgMatchingTime)
+		s.CacheHits, s.CacheMisses, s.Filtered, s.Exceptions, s.AvgMatchingTime)
 }
 
 type Adblock struct {
@@ -61,7 +62,8 @@ func New(cacheSize int) *Adblock {
 
 func (adblock *Adblock) AddRule(rule *Rule, shortcut string) {
 	if rule.Hide {
-		// TODO stats
+		adblock.Stats.NumHides++
+
 		var domains Domains
 		var exclude Domains
 		for _, domain := range rule.Domains {
