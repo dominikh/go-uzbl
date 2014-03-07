@@ -228,14 +228,6 @@ func parseRule(in string) (rule *Rule, keyword string) {
 
 	keyword = extractKeyword(in)
 
-	// XXX
-	if in == "|http:" {
-		return nil, ""
-	}
-	if in == "|http://" {
-		return nil, ""
-	}
-
 	if len(parts) == 2 {
 		options := strings.Split(parts[1], ",")
 		for _, option := range options {
