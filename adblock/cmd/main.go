@@ -17,10 +17,10 @@ import (
 )
 
 type blocker struct {
-	ab        *adblock.Adblock
-	c         net.Conn
-	num       int
-	curDomain string
+	ab         *adblock.Adblock
+	c          net.Conn
+	num        int
+	curDomains map[string]string
 }
 
 var (
@@ -116,7 +116,7 @@ and append a file to the generated stylesheet.`)
 			fmt.Fprintln(os.Stderr, "Error in Accept():", err)
 			os.Exit(4)
 		}
-		go runBlocker(&blocker{ab: ab, c: c})
+		go runBlocker(&blocker{ab: ab, c: c, curDomains: make(map[string]string)})
 	}
 }
 
@@ -124,18 +124,15 @@ func runBlocker(b *blocker) {
 	em := event_manager.New(b.c)
 	em.AddHandler("REQUEST-ADBLOCK", b.evPolicyRequest)
 	em.AddHandler("LOAD_COMMIT", b.evLoadCommit)
+	em.AddHandler("NAVIGATION_STARTING", b.evNavigationStarting)
 	em.Listen()
 }
 
 func (b *blocker) evPolicyRequest(ev *event_manager.Event) error {
-	args := ev.ParseDetail(2)
-	if len(args) != 2 {
-		return fmt.Errorf("malformed POLICY_REQUEST")
-	}
-
-	uri := args[0]
+	args := ev.ParseDetail(4)
+	uri, frame := args[0], args[2]
 	t1 := time.Now()
-	_, matches := b.ab.Match(b.curDomain, uri)
+	_, matches := b.ab.Match(b.curDomains[frame], uri)
 	t2 := time.Now()
 	log.Println("Took", t2.Sub(t1), "to filter")
 	if matches {
@@ -152,24 +149,24 @@ func (b *blocker) evPolicyRequest(ev *event_manager.Event) error {
 
 func (b *blocker) evLoadCommit(ev *event_manager.Event) error {
 	args := ev.ParseDetail(1)
-	if len(args) != 1 {
-		return fmt.Errorf("malformed NAVIGATION_STARTING")
-	}
+
+	b.curDomains = make(map[string]string)
+
 	u, err := url.Parse(args[0][1 : len(args[0])-1])
 	if err != nil {
 		return fmt.Errorf("error parsing host: %s", err)
 	}
-	log.Printf("old: %s, new: %s", b.curDomain, u.Host)
-	if u.Host == b.curDomain {
+	log.Printf("old: %s, new: %s", b.curDomains[""], u.Host)
+	if u.Host == b.curDomains[""] {
 		return nil
 	}
-	b.curDomain = u.Host
+	b.curDomains[""] = u.Host
 
 	if fAdStylesheet == "" {
 		return nil
 	}
 
-	hides := b.ab.Hide(b.curDomain)
+	hides := b.ab.Hide(b.curDomains[""])
 	log.Printf("%d hide rules", len(hides))
 	f, err := os.Create(fAdStylesheet)
 	if err != nil {
@@ -192,5 +189,12 @@ func (b *blocker) evLoadCommit(ev *event_manager.Event) error {
 
 	fmt.Fprintln(b.c, "css clear")
 	fmt.Fprintln(b.c, "css add file://"+fAdStylesheet)
+	return nil
+}
+
+func (b *blocker) evNavigationStarting(ev *event_manager.Event) error {
+	args := ev.ParseDetail(4)
+	uri, frame := args[0], args[1]
+	b.curDomains[frame] = uri
 	return nil
 }

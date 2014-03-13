@@ -24,6 +24,7 @@ type pair struct {
 }
 
 type stats struct {
+	// FIXME use a mutex
 	NumRules        int
 	NumHides        int
 	BlankKeywords   int
@@ -43,9 +44,10 @@ func (s *stats) String() string {
 type Adblock struct {
 	Rules      map[hash][]*Rule
 	Exceptions map[hash][]*Rule
-	Cache      *LRU
-	Stats      *stats
-	Hides      Hides
+	// FIXME mutex on cache
+	Cache *LRU
+	Stats *stats
+	Hides Hides
 }
 
 func New(cacheSize int) *Adblock {
