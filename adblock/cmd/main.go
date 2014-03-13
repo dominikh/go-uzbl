@@ -86,7 +86,6 @@ and append a file to the generated stylesheet.`)
 	flag.Parse()
 
 	if fSocket == "" {
-		fmt.Fprintln(os.Stderr, "No socket given")
 		flag.Usage()
 		os.Exit(1)
 	}
