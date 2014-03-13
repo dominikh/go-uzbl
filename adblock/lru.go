@@ -1,6 +1,9 @@
 package adblock
 
-import "container/list"
+import (
+	"container/list"
+	"sync"
+)
 
 type lruEntry struct {
 	v   bool
@@ -9,6 +12,7 @@ type lruEntry struct {
 }
 
 type LRU struct {
+	mu       *sync.Mutex
 	m        map[pair]*lruEntry
 	l        *list.List
 	capacity int
@@ -16,6 +20,7 @@ type LRU struct {
 
 func NewLRU(capacity int) *LRU {
 	return &LRU{
+		mu:       &sync.Mutex{},
 		m:        make(map[pair]*lruEntry),
 		l:        list.New(),
 		capacity: capacity,
@@ -43,6 +48,8 @@ func (lru *LRU) prune() {
 }
 
 func (lru *LRU) Set(key pair, value bool) {
+	lru.mu.Lock()
+	defer lru.mu.Unlock()
 	e, ok := lru.m[key]
 	if ok {
 		e.v = value
@@ -60,6 +67,8 @@ func (lru *LRU) Set(key pair, value bool) {
 }
 
 func (lru *LRU) Get(key pair) (value bool, ok bool) {
+	lru.mu.Lock()
+	defer lru.mu.Unlock()
 	e, ok := lru.m[key]
 	if !ok {
 		return false, false
