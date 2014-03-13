@@ -16,6 +16,22 @@ import (
 	"honnef.co/go/uzbl/event_manager"
 )
 
+type logger bool
+
+func (l logger) Println(v ...interface{}) {
+	if l {
+		log.Println(v...)
+	}
+}
+
+func (l logger) Printf(format string, v ...interface{}) {
+	if l {
+		log.Printf(format, v...)
+	}
+}
+
+var logging logger
+
 type blocker struct {
 	ab         *adblock.Adblock
 	c          net.Conn
@@ -28,6 +44,7 @@ var (
 	fCache          int
 	fUserStylesheet string
 	fAdStylesheet   string
+	fVerbose        bool
 )
 
 func main() {
@@ -65,6 +82,7 @@ and append a file to the generated stylesheet.`)
 	flag.StringVar(&fUserStylesheet, "user-stylesheet", "", "Path to user stylesheet to append")
 	flag.StringVar(&fAdStylesheet, "ad-stylesheet", "", "Path where to store temporary ad stylesheet")
 	flag.IntVar(&fCache, "cache", 50000, "The number of filter calculations to cache")
+	flag.BoolVar(&fVerbose, "verbose", false, "Enable verbose output")
 	flag.Parse()
 
 	if fSocket == "" {
@@ -72,6 +90,8 @@ and append a file to the generated stylesheet.`)
 		flag.Usage()
 		os.Exit(1)
 	}
+
+	logging = logger(fVerbose)
 
 	ab := adblock.New(fCache)
 
@@ -87,7 +107,7 @@ and append a file to the generated stylesheet.`)
 	}
 	ab.Optimize()
 
-	log.Printf("Loaded %d rules, %d element hiding rules, %d keywords, %d rules without keywords",
+	fmt.Printf("Loaded %d rules, %d element hiding rules, %d keywords, %d rules without keywords\n",
 		ab.Stats.NumRules, ab.Stats.NumHides, len(ab.Rules)+len(ab.Exceptions), ab.Stats.BlankKeywords)
 
 	addr, err := net.ResolveUnixAddr("unix", fSocket)
@@ -134,15 +154,17 @@ func (b *blocker) evPolicyRequest(ev *event_manager.Event) error {
 	t1 := time.Now()
 	_, matches := b.ab.Match(b.curDomains[frame], uri)
 	t2 := time.Now()
-	log.Println("Took", t2.Sub(t1), "to filter")
 	if matches {
+		logging.Println("Took", t2.Sub(t1), "to filter (match)", uri)
 		uri = "about:blank"
+	} else {
+		logging.Println("Took", t2.Sub(t1), "to filter (no match)", uri)
 	}
 
 	fmt.Fprintf(b.c, "REPLY-%s %s\n", ev.Cookie, uri)
 	b.num++
 	if b.num%20 == 0 {
-		log.Println(b.ab.Stats)
+		logging.Println(b.ab.Stats)
 	}
 	return nil
 }
@@ -156,7 +178,6 @@ func (b *blocker) evLoadCommit(ev *event_manager.Event) error {
 	if err != nil {
 		return fmt.Errorf("error parsing host: %s", err)
 	}
-	log.Printf("old: %s, new: %s", b.curDomains[""], u.Host)
 	if u.Host == b.curDomains[""] {
 		return nil
 	}
@@ -167,7 +188,7 @@ func (b *blocker) evLoadCommit(ev *event_manager.Event) error {
 	}
 
 	hides := b.ab.Hide(b.curDomains[""])
-	log.Printf("%d hide rules", len(hides))
+	logging.Printf("%d hide rules", len(hides))
 	f, err := os.Create(fAdStylesheet)
 	if err != nil {
 		return err
