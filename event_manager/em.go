@@ -20,9 +20,15 @@ type Event struct {
 }
 
 func (ev *Event) ParseDetail(n int) []string {
-	if n >= 0 && n <= 1 {
+	if n == 0 {
+		return nil
+	}
+	if n == 1 {
+		// FIXME should we really just return ev.Detail, without
+		// parsing it at all? what if it's a string?
 		return []string{ev.Detail}
 	}
+
 	var out []string
 	pos := 0
 	argStart := 0
@@ -62,7 +68,7 @@ func (ev *Event) ParseDetail(n int) []string {
 			if !stringOpen {
 				// we just advanced to the next argument
 				if advance(i) {
-					return out
+					goto Done
 				}
 			}
 			escape = false
@@ -77,13 +83,13 @@ func (ev *Event) ParseDetail(n int) []string {
 				if stringChar == c {
 					// we just closed a string
 					if advance(i) {
-						return out
+						goto Done
 					}
 				}
 			} else {
 				// we just opened a string
 				if advance(i) {
-					return out
+					goto Done
 				}
 				stringOpen = true
 				stringChar = c
@@ -96,6 +102,16 @@ func (ev *Event) ParseDetail(n int) []string {
 		}
 	}
 	advance(len(ev.Detail))
+Done:
+	return pad(out, n)
+}
+
+func pad(s []string, n int) []string {
+	if len(s) == n {
+		return s
+	}
+	out := make([]string, n)
+	copy(out, s)
 	return out
 }
 
