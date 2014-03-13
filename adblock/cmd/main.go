@@ -35,7 +35,6 @@ var logging logger
 type blocker struct {
 	ab         *adblock.Adblock
 	c          net.Conn
-	num        int
 	curDomains map[string]string
 }
 
@@ -94,6 +93,7 @@ and append a file to the generated stylesheet.`)
 
 	ab := adblock.New(fCache)
 
+	numRules := 0
 	for _, path := range flag.Args() {
 		f, err := os.Open(path)
 		if err != nil {
@@ -101,13 +101,12 @@ and append a file to the generated stylesheet.`)
 			f.Close()
 			continue
 		}
-		ab.LoadRules(f)
+		numRules += ab.LoadRules(f)
 		f.Close()
 	}
 	ab.Optimize()
 
-	fmt.Printf("Loaded %d rules, %d element hiding rules, %d keywords, %d rules without keywords\n",
-		ab.Stats.NumRules, ab.Stats.NumHides, len(ab.Rules)+len(ab.Exceptions), ab.Stats.BlankKeywords)
+	fmt.Printf("Loaded %d rules\n", numRules)
 
 	addr, err := net.ResolveUnixAddr("unix", fSocket)
 	if err != nil {
@@ -161,10 +160,6 @@ func (b *blocker) evPolicyRequest(ev *event_manager.Event) error {
 	}
 
 	fmt.Fprintf(b.c, "REPLY-%s %s\n", ev.Cookie, uri)
-	b.num++
-	if b.num%20 == 0 {
-		logging.Println(b.ab.Stats)
-	}
 	return nil
 }
 
