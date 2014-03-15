@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func parseHide(in string) (*Rule, string) {
+func parseHide(in string) *Rule {
 	h := &Rule{Hide: true}
 	var parts []string
 	var exception bool
@@ -17,7 +17,7 @@ func parseHide(in string) (*Rule, string) {
 		parts = strings.SplitN(in, "##", 2)
 	}
 	if len(parts) == 0 || len(parts) == 1 {
-		return nil, ""
+		return nil
 	}
 
 	if len(parts[0]) > 0 {
@@ -32,7 +32,7 @@ func parseHide(in string) (*Rule, string) {
 
 	h.Selector = parts[1]
 
-	return h, ""
+	return h
 }
 
 type Domain []string

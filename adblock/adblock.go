@@ -39,7 +39,7 @@ func New(cacheSize int) *Adblock {
 	}
 }
 
-func (adblock *Adblock) AddRule(rule *Rule, keyword string) {
+func (adblock *Adblock) AddRule(rule *Rule) {
 	if rule.Hide {
 		var domains Domains
 		var exclude Domains
@@ -55,7 +55,7 @@ func (adblock *Adblock) AddRule(rule *Rule, keyword string) {
 		return
 	}
 
-	hash := hashstr(keyword)
+	hash := hashstr(rule.Keyword)
 	if rule.Exception {
 		adblock.Exceptions[hash] = append(adblock.Exceptions[hash], rule)
 	} else {
@@ -74,11 +74,11 @@ func (adblock *Adblock) LoadRules(r io.Reader) (rules int) {
 		if line == "" {
 			continue
 		}
-		rule, keyword := Parse(line)
+		rule := Parse(line)
 
 		if rule != nil {
 			rules++
-			adblock.AddRule(rule, keyword)
+			adblock.AddRule(rule)
 		}
 	}
 
@@ -144,6 +144,7 @@ type Rule struct {
 	FirstParty bool
 	Hide       bool
 	Selector   string
+	Keyword    string
 }
 
 func (r *Rule) String() string {
@@ -179,7 +180,7 @@ func (r *Rule) Match(src string, req string) (ret bool) {
 	return r.Regexp.MatchString(req) && r.matchOrigin(src, req)
 }
 
-func parseRule(in string) (rule *Rule, keyword string) {
+func parseRule(in string) *Rule {
 	r := &Rule{}
 	var matchCase bool
 
@@ -187,7 +188,7 @@ func parseRule(in string) (rule *Rule, keyword string) {
 		panic("not a valid rule: empty")
 	}
 	if in[0] == '!' {
-		return nil, ""
+		return nil
 	}
 	if len(in) >= 2 && in[0:2] == "@@" {
 		r.Exception = true
@@ -199,10 +200,10 @@ func parseRule(in string) (rule *Rule, keyword string) {
 
 	if len(in) == 0 {
 		// FIXME with a $third-party rule, this might actually make sense
-		return nil, ""
+		return nil
 	}
 
-	keyword = extractKeyword(in)
+	r.Keyword = extractKeyword(in)
 
 	if len(parts) == 2 {
 		options := strings.Split(parts[1], ",")
@@ -219,7 +220,7 @@ func parseRule(in string) (rule *Rule, keyword string) {
 				"~script", "~image", "~stylesheet", "~object", "~xmlhttprequest", "~object-subrequest",
 				"~subdocument", "~document", "~elemhide", "~other", "~background", "~xbl", "~ping", "~dtd":
 				// We don't know what kind of request we're working with, so reject these rules
-				return nil, ""
+				return nil
 			default:
 				if len(option) >= 6 && option[:6] == "domain" {
 					parts := strings.SplitN(option, "=", 2)
@@ -277,10 +278,10 @@ func parseRule(in string) (rule *Rule, keyword string) {
 	} else {
 		r.Hash = hashstr(in)
 	}
-	return r, keyword
+	return r
 }
 
-func Parse(in string) (rule *Rule, keyword string) {
+func Parse(in string) (rule *Rule) {
 	if strings.Contains(in, "##") || strings.Contains(in, "#@#") {
 		return parseHide(in)
 	}
