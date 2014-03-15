@@ -39,19 +39,24 @@ func New(cacheSize int) *Adblock {
 	}
 }
 
+func (adblock *Adblock) addHide(rule *Rule) {
+	var domains Domains
+	var exclude Domains
+	for _, domain := range rule.Domains {
+		if domain[0] == '~' {
+			exclude = append(exclude, NewDomain(domain[1:]))
+		} else {
+			domains = append(domains, NewDomain(domain))
+		}
+	}
+	adblock.Hides = append(adblock.Hides,
+		&Hide{Domains: domains, Exclude: exclude, Selectors: []string{rule.Selector}})
+	return
+}
+
 func (adblock *Adblock) AddRule(rule *Rule) {
 	if rule.Hide {
-		var domains Domains
-		var exclude Domains
-		for _, domain := range rule.Domains {
-			if domain[0] == '~' {
-				exclude = append(exclude, NewDomain(domain[1:]))
-			} else {
-				domains = append(domains, NewDomain(domain))
-			}
-		}
-		adblock.Hides = append(adblock.Hides,
-			&Hide{Domains: domains, Exclude: exclude, Selectors: []string{rule.Selector}})
+		adblock.addHide(rule)
 		return
 	}
 
