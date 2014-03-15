@@ -5,65 +5,58 @@ import (
 	"strings"
 
 	"honnef.co/go/uzbl"
-	"honnef.co/go/uzbl/event_manager"
 )
 
 type Follow struct {
-	uzbl   *uzbl.Uzbl
 	keymap *uzbl.Keymap
 }
 
-func New(u *uzbl.Uzbl) *Follow {
-	return &Follow{uzbl: u}
-}
-
-func (f *Follow) Init() {
-
+func (f *Follow) Init(u *uzbl.Uzbl) {
 	f.keymap = &uzbl.Keymap{
 		Prompt:   "Follow:",
 		OnEscape: f.evEscape,
 	}
 	f.keymap.Bind("<*>", f.evKeypress)
 
-	f.uzbl.EM.AddHandler("LOAD_COMMIT", f.evLoadCommit)
-	f.uzbl.EM.AddHandler("FOLLOW", f.evFollow)
-	f.uzbl.EM.AddHandler("FOLLOWING", f.evFollowing)
+	u.AddHandler("LOAD_COMMIT", f.evLoadCommit)
+	u.AddHandler("FOLLOW", f.evFollow)
+	u.AddHandler("FOLLOWING", f.evFollowing)
 }
 
-func (f *Follow) evLoadCommit(*event_manager.Event) error {
+func (f *Follow) evLoadCommit(ev *uzbl.Event) error {
 	// FIXME relative path
 	// TODO see if we can use a data uri for this
-	f.uzbl.Send("js page file /home/dominikh/.config/uzbl/hints.js")
+	ev.Uzbl.Send("js page file /home/dominikh/.config/uzbl/hints.js")
 	return nil
 }
 
-func (f *Follow) evEscape() {
-	f.uzbl.Send("js page string uzbl.LinkHints.deactivateMode()")
+func (f *Follow) evEscape(ev *uzbl.Event) {
+	ev.Uzbl.Send("js page string uzbl.LinkHints.deactivateMode()")
 }
 
-func (f *Follow) evKeypress(ev *event_manager.Event, input uzbl.Keys) error {
-	f.uzbl.Send(fmt.Sprintf("event FOLLOWING @< uzbl.LinkHints.Blegh('%s') >@", input))
+func (f *Follow) evKeypress(ev *uzbl.Event, input uzbl.Keys) error {
+	ev.Uzbl.Send(fmt.Sprintf("event FOLLOWING @< uzbl.LinkHints.Blegh('%s') >@", input))
 	return nil
 }
 
-func (f *Follow) evFollow(ev *event_manager.Event) error {
-	f.uzbl.IM.SetKeymap(f.keymap)
-	f.uzbl.Send("event FOLLOWING @< uzbl.LinkHints.Blegh('') >@")
+func (f *Follow) evFollow(ev *uzbl.Event) error {
+	ev.Uzbl.IM.SetKeymap(f.keymap)
+	ev.Uzbl.Send("event FOLLOWING @< uzbl.LinkHints.Blegh('') >@")
 	return nil
 }
 
-func (f *Follow) evFollowing(ev *event_manager.Event) error {
+func (f *Follow) evFollowing(ev *uzbl.Event) error {
 	parts := strings.SplitN(ev.Detail, " ", 2)
 	if len(parts) == 0 {
 		return nil
 	}
 	if parts[0] == "select" || parts[0] == "click" {
-		f.uzbl.Send("js page string uzbl.LinkHints.deactivateMode()")
-		f.uzbl.IM.SetGlobalKeymap()
+		ev.Uzbl.Send("js page string uzbl.LinkHints.deactivateMode()")
+		ev.Uzbl.IM.SetGlobalKeymap()
 	}
 
 	if parts[0] == "select" {
-		f.uzbl.Send("event INSERT_MODE")
+		ev.Uzbl.Send("event INSERT_MODE")
 	}
 	return nil
 }

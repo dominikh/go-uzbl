@@ -10,9 +10,9 @@ import (
 func main() {
 	u := &uzbl.Uzbl{}
 	u.Register(
-		progress.New(u),
-		scroll.New(u),
-		follow.New(u),
+		&progress.Bar{},
+		&scroll.Indicator{},
+		&follow.Follow{},
 	)
 	u.Start()
 }
