@@ -137,14 +137,19 @@ func mergeOnSelector(in []*Hide) []*Hide {
 func mergeOnDomain(in []*Hide) []*Hide {
 	var out []*Hide
 
-	newHides := make(map[string]*Hide)
+	type key struct {
+		domains string
+		exclude string
+	}
+
+	newHides := make(map[key]*Hide)
 	for _, hide := range in {
-		key := hide.Domains.String() + "|" + hide.Exclude.String()
+		k := key{hide.Domains.String(), hide.Exclude.String()}
 		var h *Hide
 		var ok bool
-		if h, ok = newHides[key]; !ok {
+		if h, ok = newHides[k]; !ok {
 			h = &Hide{Domains: hide.Domains, Exclude: hide.Exclude}
-			newHides[key] = h
+			newHides[k] = h
 		}
 		h.Selectors = append(h.Selectors, hide.Selectors...)
 	}
