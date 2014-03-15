@@ -20,90 +20,71 @@ type Event struct {
 }
 
 func (ev *Event) ParseDetail(n int) []string {
-	if n == 0 {
-		return nil
-	}
-	if n == 1 {
-		// FIXME should we really just return ev.Detail, without
-		// parsing it at all? what if it's a string?
-		return []string{ev.Detail}
+	var out []string
+
+	start := 0
+	inString := false
+	stringDelim := rune(0)
+	escape := false
+
+	progress := func(start, i int) {
+		arg := ev.Detail[start:i]
+		arg = strings.Replace(arg, `\`, "", -1)
+		out = append(out, arg)
+		inString = false
 	}
 
-	var out []string
-	pos := 0
-	argStart := 0
-	hasNonSpace := false
-	stringOpen := false
-	stringChar := '"'
-	escape := false
-	last := false
-	var advance func(i int) bool
-	advance = func(i int) bool {
-		if hasNonSpace || last {
-			out = append(out, ev.Detail[argStart:i])
-			pos++
-		}
-		stringOpen = false
-		hasNonSpace = false
-		argStart = i + 1
-		if n >= 0 && pos == n-1 {
-			last = true
-			var i int
-			var c rune
-			for i, c = range ev.Detail[argStart:] {
-				if c != ' ' {
-					break
-				}
-			}
-			argStart += i
-			advance(len(ev.Detail))
-			return true
-		}
-		return false
-	}
-	// TODO determine whether strings in \@<> (and similar) cause problems
 	for i, c := range ev.Detail {
 		switch c {
 		case ' ':
-			if !stringOpen {
-				// we just advanced to the next argument
-				if advance(i) {
-					goto Done
-				}
-			}
-			escape = false
-		case '\'', '"':
 			if escape {
-				hasNonSpace = true
 				escape = false
 				continue
 			}
-			if stringOpen {
-				hasNonSpace = true
-				if stringChar == c {
-					// we just closed a string
-					if advance(i) {
-						goto Done
-					}
-				}
-			} else {
-				// we just opened a string
-				if advance(i) {
-					goto Done
-				}
-				stringOpen = true
-				stringChar = c
+
+			if inString {
+				continue
 			}
+
+			if ev.Detail[start:i] == "" {
+				// previous one was space or start of string
+				start = i + 1
+				continue
+			}
+
+			progress(start, i)
+			start = i + 1
+		case '"', '\'':
+			if escape {
+				escape = false
+				continue
+			}
+
+			if !inString {
+				start = i + 1
+				inString = true
+				stringDelim = c
+				continue
+			}
+
+			if stringDelim == c {
+				progress(start, i)
+				start = i + 1
+			}
+			escape = false
 		case '\\':
-			escape = true
+			escape = !escape
 		default:
-			hasNonSpace = true
 			escape = false
 		}
 	}
-	advance(len(ev.Detail))
-Done:
-	return pad(out, n)
+	if start < len(ev.Detail) {
+		progress(start, len(ev.Detail))
+	}
+	if n > len(out) {
+		return pad(out, n)
+	}
+	return out[:n]
 }
 
 func pad(s []string, n int) []string {

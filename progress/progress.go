@@ -46,7 +46,7 @@ func (p *ProgressBar) evLoadProgress(ev *event_manager.Event) error {
 	progress := 100
 	var err error
 	if ev.Detail != "" {
-		progress, err = strconv.Atoi(ev.Detail)
+		progress, err = strconv.Atoi(ev.ParseDetail(1)[0])
 		if err != nil {
 			return err
 		}
