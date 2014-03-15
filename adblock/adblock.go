@@ -97,6 +97,15 @@ func (adblock *Adblock) Optimize() {
 	adblock.Hides = mergeOnDomain(adblock.Hides)
 }
 
+// mergeOnSelector merges all hides that have the same selector. This
+// ensures that for a selector, all domains and excludes are known.
+//
+// Calling this is required, otherwise finding hides for a domain may
+// return wrong results, not being aware of an exclude for the rule.
+//
+// This function must not be called after mergeOnDomain has been
+// called, because that function merges multiple selectors if they
+// have the same domains and excludes.
 func mergeOnSelector(in []*Hide) []*Hide {
 	var out []*Hide
 
@@ -119,6 +128,12 @@ func mergeOnSelector(in []*Hide) []*Hide {
 	return out
 }
 
+// mergeOnDomain merges all hides that have the same combination of
+// domains and excludes.
+//
+// Calling this function is optional since all it does is reduce
+// memory usage and improve matching speed. In theory it can also be
+// called multiple times.
 func mergeOnDomain(in []*Hide) []*Hide {
 	var out []*Hide
 
