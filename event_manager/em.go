@@ -1,4 +1,4 @@
-package event_manager
+package event_manager // import "honnef.co/go/uzbl/event_manager"
 
 import (
 	"bufio"

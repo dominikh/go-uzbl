@@ -1,4 +1,4 @@
-package progress
+package progress // import "honnef.co/go/uzbl/progress"
 
 import (
 	"fmt"

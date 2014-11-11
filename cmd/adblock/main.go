@@ -1,4 +1,4 @@
-package main
+package main // import "honnef.co/go/uzbl/cmd/adblock"
 
 import (
 	"flag"

@@ -1,4 +1,4 @@
-package uzbl
+package uzbl // import "honnef.co/go/uzbl"
 
 import (
 	"fmt"

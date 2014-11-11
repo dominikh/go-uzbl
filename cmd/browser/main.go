@@ -1,4 +1,4 @@
-package main
+package main // import "honnef.co/go/uzbl/browser"
 
 import (
 	"honnef.co/go/uzbl"

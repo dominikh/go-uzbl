@@ -1,4 +1,4 @@
-package adblock
+package adblock // import "honnef.co/go/uzbl/adblock"
 
 import (
 	"bufio"

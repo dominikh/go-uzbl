@@ -1,4 +1,4 @@
-package scroll
+package scroll // import "honnef.co/go/uzbl/scroll"
 
 import (
 	"fmt"

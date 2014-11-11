@@ -1,4 +1,4 @@
-package follow
+package follow // import "honnef.co/go/uzbl/follow"
 
 import (
 	"fmt"
